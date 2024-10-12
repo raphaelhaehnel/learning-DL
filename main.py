@@ -2,6 +2,7 @@
 # If the traditional approach is a better option - DON'T USE DEEP LEARNING
 # If errors are unacceptable - DON'T USE DEEP LEARNING
 # If I don't have much data - DON'T USE DEEP LEARNING
+from cProfile import label
 
 # Tensor datatype main errors:
 # - Tensors not right datatype
@@ -101,12 +102,18 @@ if __name__ == '__main__':
     loss_fn = nn.L1Loss() # MAE function
 
     # Setup an optimizer
-    optimizer = torch.optim.Adam(params=model_0.parameters(),
+    optimizer = torch.optim.SGD(params=model_0.parameters(),
                                 lr=0.01) # stochastic gradient descent
 
     # Building a training loop
-    epochs = 150
-    losses = []
+    epochs = 180
+
+    # Track different values
+    epoch_count = []
+    train_loss_values = []
+    test_loss_values = []
+
+
     for epoch in range(epochs):
 
         # Set the model to training mode
@@ -129,19 +136,36 @@ if __name__ == '__main__':
         # 5. Gradient descent
         optimizer.step()
 
-        losses.append(loss.data.item())
+        # Turn off gradient tracking
+        model_0.eval()
 
-    # Turn off gradient tracking
-    model_0.eval()
+        with torch.inference_mode():
+
+            # 1. Do the forward pass
+            test_pred = model_0(X_test)
+
+            # 2. Calculate the loss
+            test_loss = loss_fn(test_pred, y_test)
+
+        epoch_count.append(epoch)
+        train_loss_values.append(loss.detach().numpy())
+        test_loss_values.append(test_loss.detach().numpy())
+
+
+    print(list(model_0.parameters()))
 
     with torch.inference_mode():
-        y_pred = model_0(X_test)
+        test_pred = model_0(X_test)
 
-    plot_data(X_train, y_train, X_test, y_pred, "After training")
+    plot_data(X_train, y_train, X_test, test_pred, "After training")
 
     plt.figure()
-    plt.plot(losses)
+    plt.plot(epoch_count, train_loss_values, label="Train loss")
+    plt.plot(epoch_count, test_loss_values, label="Test loss")
+    plt.legend()
     plt.title("Loss function")
 
     plt.show()
+
+
     print("end")
