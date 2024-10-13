@@ -41,7 +41,7 @@ def conversions():
     print("end")
 
 def define_gpu():
-    print(torch.cuda.is_available())
+    print("CUDA is available ? ", torch.cuda.is_available())
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("count devices: ", torch.cuda.device_count())
     return device
@@ -62,34 +62,37 @@ def split_train_test(X, y):
 
     return X_train, y_train, X_test, y_test
 
-def plot_data(X_train, y_train, X_test, y_test, title):
+def plot_data(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor, y_test: torch.Tensor, title: str):
     plt.figure()
-    plt.scatter(X_train, y_train, c="b", label="Training data")
-    plt.scatter(X_test, y_test, c="g", label="Testing data")
+    plt.scatter(X_train.cpu(), y_train.cpu(), c="b", label="Training data")
+    plt.scatter(X_test.cpu(), y_test.cpu(), c="g", label="Testing data")
     plt.legend()
     plt.title(title)
 
 class LinearRegressionModel(nn.Module):
-    def __init__(self):
+    def __init__(self, device: str):
         super().__init__()
         self.weights = nn.Parameter(torch.randn(1,
                                                 requires_grad=True,
-                                                dtype=torch.float))
+                                                dtype=torch.float,
+                                                device=device))
         self.bias = nn.Parameter(torch.randn(1,
                                              requires_grad=True,
-                                             dtype=torch.float))
+                                             dtype=torch.float,
+                                             device=device))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.weights * x + self.bias
 
 class LinearRegressionModelV2(nn.Module):
-    def __init__(self):
+    def __init__(self, device: str):
         super().__init__()
 
         # Use nn.Linear() for creating the model parameters
         self.linear_layer = nn.Linear(in_features=1,
                                       out_features=1,
-                                      bias=True)
+                                      bias=True,
+                                      device=device)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.linear_layer(x)
@@ -146,7 +149,7 @@ def run_model(model):
     loss_fn = nn.L1Loss()  # MAE function
 
     # Setup an optimizer
-    optimizer = torch.optim.Adam(params=model.parameters(),
+    optimizer = torch.optim.SGD(params=model.parameters(),
                                  lr=0.01)  # stochastic gradient descent
 
     # Building a training loop
@@ -163,8 +166,8 @@ def run_model(model):
         test_loss = test_model(model, loss_fn)
 
         epoch_count.append(epoch)
-        train_loss_values.append(loss.detach().numpy())
-        test_loss_values.append(test_loss.detach().numpy())
+        train_loss_values.append(loss.cpu().detach().numpy())
+        test_loss_values.append(test_loss.cpu().detach().numpy())
 
     print(list(model.parameters()))
 
@@ -190,15 +193,15 @@ if __name__ == '__main__':
     # plot_data(X_train, y_train, X_test, y_test)
 
     torch.manual_seed(42)
-    model_0 = LinearRegressionModel()
-    model_1 = LinearRegressionModelV2()
+    model_0 = LinearRegressionModel(device)
+    model_1 = LinearRegressionModelV2(device)
 
     print(f"{model_0._get_name()} parameters: {model_0.state_dict()}")
     print(f"{model_1._get_name()} parameters: {model_1.state_dict()}")
 
     run_model(model_0)
     run_model(model_1)
-    plt.show()
 
+    plt.show()
 
     print("end")
