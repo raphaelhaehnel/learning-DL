@@ -82,6 +82,105 @@ class LinearRegressionModel(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.weights * x + self.bias
 
+class LinearRegressionModelV2(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        # Use nn.Linear() for creating the model parameters
+        self.linear_layer = nn.Linear(in_features=1,
+                                      out_features=1,
+                                      bias=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.linear_layer(x)
+
+
+def training_step(model, loss_fn, optimizer):
+
+    # Set the model to training mode
+    model.train()
+
+    # 1. Forward pass
+    y_pred = model(X_train)
+
+    # 2. Calculate loss
+    loss = loss_fn(y_pred, y_train)
+
+    # 3. Optimizer zero grad
+    optimizer.zero_grad()
+
+    # 4. Backpropagation
+    loss.backward()
+
+    # 5. Gradient descent
+    optimizer.step()
+
+    # Turn off gradient tracking
+    model.eval()
+
+    return loss
+
+
+def test_model(model, loss_fn):
+
+    with torch.inference_mode():
+        # 1. Do the forward pass
+        test_pred = model(X_test)
+
+        # 2. Calculate the loss
+        test_loss = loss_fn(test_pred, y_test)
+
+        return test_loss
+
+def run_model(model):
+    # Turn off gradient tracking. Like torch.no_grad but better
+    with torch.inference_mode():
+        y_pred = model(X_test)
+
+    plot_data(X_train, y_train, X_test, y_pred, "Before training")
+
+    # Current values of the parameters
+    print(model.state_dict().values())
+
+    # Setup a loss function
+    loss_fn = nn.L1Loss()  # MAE function
+
+    # Setup an optimizer
+    optimizer = torch.optim.Adam(params=model.parameters(),
+                                 lr=0.01)  # stochastic gradient descent
+
+    # Building a training loop
+    epochs = 180
+
+    # Track different values
+    epoch_count = []
+    train_loss_values = []
+    test_loss_values = []
+
+    for epoch in range(epochs):
+        loss = training_step(model, loss_fn, optimizer)
+
+        test_loss = test_model(model, loss_fn)
+
+        epoch_count.append(epoch)
+        train_loss_values.append(loss.detach().numpy())
+        test_loss_values.append(test_loss.detach().numpy())
+
+    print(list(model.parameters()))
+
+    with torch.inference_mode():
+        test_pred = model(X_test)
+
+    plot_data(X_train, y_train, X_test, test_pred, "After training")
+
+    plt.figure()
+    plt.plot(epoch_count, train_loss_values, label="Train loss")
+    plt.plot(epoch_count, test_loss_values, label="Test loss")
+    plt.legend()
+    plt.title(f"Loss function {model._get_name()}")
+
+    torch.save(model.state_dict(), PATH_MODEL)
+
 if __name__ == '__main__':
 
     device = define_gpu()
@@ -92,85 +191,14 @@ if __name__ == '__main__':
 
     torch.manual_seed(42)
     model_0 = LinearRegressionModel()
+    model_1 = LinearRegressionModelV2()
 
-    # Turn off gradient tracking. Like torch.no_grad but better
-    with torch.inference_mode():
-        y_pred = model_0(X_test)
+    print(f"{model_0._get_name()} parameters: {model_0.state_dict()}")
+    print(f"{model_1._get_name()} parameters: {model_1.state_dict()}")
 
-    plot_data(X_train, y_train, X_test, y_pred, "Before training")
-
-    # Current values of the parameters
-    print(model_0.state_dict().values())
-
-    # Setup a loss function
-    loss_fn = nn.L1Loss() # MAE function
-
-    # Setup an optimizer
-    optimizer = torch.optim.Adam(params=model_0.parameters(),
-                                lr=0.01) # stochastic gradient descent
-
-    # Building a training loop
-    epochs = 180
-
-    # Track different values
-    epoch_count = []
-    train_loss_values = []
-    test_loss_values = []
-
-
-    for epoch in range(epochs):
-
-        # Set the model to training mode
-        model_0.train()
-
-        # model_0.eval() # turns off gradient tracking
-
-        # 1. Forward pass
-        y_pred = model_0(X_train)
-
-        # 2. Calculate loss
-        loss = loss_fn(y_pred, y_train)
-
-        # 3. Optimizer zero grad
-        optimizer.zero_grad()
-
-        # 4. Backpropagation
-        loss.backward()
-
-        # 5. Gradient descent
-        optimizer.step()
-
-        # Turn off gradient tracking
-        model_0.eval()
-
-        with torch.inference_mode():
-
-            # 1. Do the forward pass
-            test_pred = model_0(X_test)
-
-            # 2. Calculate the loss
-            test_loss = loss_fn(test_pred, y_test)
-
-        epoch_count.append(epoch)
-        train_loss_values.append(loss.detach().numpy())
-        test_loss_values.append(test_loss.detach().numpy())
-
-
-    print(list(model_0.parameters()))
-
-    with torch.inference_mode():
-        test_pred = model_0(X_test)
-
-    # plot_data(X_train, y_train, X_test, test_pred, "After training")
-    #
-    # plt.figure()
-    # plt.plot(epoch_count, train_loss_values, label="Train loss")
-    # plt.plot(epoch_count, test_loss_values, label="Test loss")
-    # plt.legend()
-    # plt.title("Loss function")
-
-    torch.save(model_0.state_dict(), PATH_MODEL)
-    # plt.show()
+    run_model(model_0)
+    run_model(model_1)
+    plt.show()
 
 
     print("end")
