@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+PATH_MODEL = "./models/model.pt"
 
 # Introduction to tensors
 def intro_tensor():
@@ -45,8 +46,8 @@ def define_gpu():
     print("count devices: ", torch.cuda.device_count())
     return device
 
-def prepare_and_load_data():
-    X = torch.arange(0, 1, 0.02).unsqueeze(dim=1)
+def prepare_and_load_data(device):
+    X = torch.arange(0, 1, 0.02, device=device).unsqueeze(dim=1)
     weight = 0.7
     bias = 0.3
 
@@ -82,7 +83,10 @@ class LinearRegressionModel(nn.Module):
         return self.weights * x + self.bias
 
 if __name__ == '__main__':
-    X, y = prepare_and_load_data()
+
+    device = define_gpu()
+
+    X, y = prepare_and_load_data(device)
     X_train, y_train, X_test, y_test = split_train_test(X, y)
     # plot_data(X_train, y_train, X_test, y_test)
 
@@ -102,7 +106,7 @@ if __name__ == '__main__':
     loss_fn = nn.L1Loss() # MAE function
 
     # Setup an optimizer
-    optimizer = torch.optim.SGD(params=model_0.parameters(),
+    optimizer = torch.optim.Adam(params=model_0.parameters(),
                                 lr=0.01) # stochastic gradient descent
 
     # Building a training loop
@@ -157,15 +161,16 @@ if __name__ == '__main__':
     with torch.inference_mode():
         test_pred = model_0(X_test)
 
-    plot_data(X_train, y_train, X_test, test_pred, "After training")
+    # plot_data(X_train, y_train, X_test, test_pred, "After training")
+    #
+    # plt.figure()
+    # plt.plot(epoch_count, train_loss_values, label="Train loss")
+    # plt.plot(epoch_count, test_loss_values, label="Test loss")
+    # plt.legend()
+    # plt.title("Loss function")
 
-    plt.figure()
-    plt.plot(epoch_count, train_loss_values, label="Train loss")
-    plt.plot(epoch_count, test_loss_values, label="Test loss")
-    plt.legend()
-    plt.title("Loss function")
-
-    plt.show()
+    torch.save(model_0.state_dict(), PATH_MODEL)
+    # plt.show()
 
 
     print("end")
