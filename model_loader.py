@@ -1,6 +1,6 @@
 import torch
-from main import PATH_MODEL
-from main import LinearRegressionModel
+from p1_regression import PATH_MODEL
+from p1_regression import LinearRegressionModel
 
 # Create the model
 model_0 = LinearRegressionModel()

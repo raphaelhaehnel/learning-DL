@@ -140,7 +140,7 @@ def run_model(model):
     with torch.inference_mode():
         y_pred = model(X_test)
 
-    plot_data(X_train, y_train, X_test, y_pred, "Before training")
+    # plot_data(X_train, y_train, X_test, y_pred, "Before training")
 
     # Current values of the parameters
     print(model.state_dict().values())
@@ -174,7 +174,7 @@ def run_model(model):
     with torch.inference_mode():
         test_pred = model(X_test)
 
-    plot_data(X_train, y_train, X_test, test_pred, "After training")
+    # plot_data(X_train, y_train, X_test, test_pred, "After training")
 
     plt.figure()
     plt.plot(epoch_count, train_loss_values, label="Train loss")
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     X_train, y_train, X_test, y_test = split_train_test(X, y)
     # plot_data(X_train, y_train, X_test, y_test)
 
-    torch.manual_seed(42)
+    # torch.manual_seed(42)
     model_0 = LinearRegressionModel(device)
     model_1 = LinearRegressionModelV2(device)
 
