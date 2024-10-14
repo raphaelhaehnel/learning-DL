@@ -54,6 +54,26 @@ device = "cpu"
 model_0 = CircleModelV0(device)
 
 with torch.inference_mode():
-    untrained_preds = model_0(X_test.to(device))
+    untrained_preds = model_0(X_test)
 
+loss_fn = nn.BCEWithLogitsLoss
+
+optimizer = torch.optim.SGD(params=model_0.parameters(),
+                            lr=0.1)
+
+# Calculate accuracy
+def accuracy_fn(y_true, y_pred):
+    correct = torch.eq(y_true, y_pred).sum().item()
+    acc = correct/len(y_pred) * 100
+    return acc
+
+# Train model
+
+epochs = 100
+
+for epoch in range(epochs):
+
+    y_logits = model_0(X_test)
+    y_pred_probs = torch.sigmoid(y_logits)
+    torch.round(y_pred_probs)
 print("end")
