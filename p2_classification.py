@@ -4,6 +4,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 from torch import nn
+import requests
+from pathlib import Path
+
+# Download helper function from Learn PyToch repo
+if Path("helper_functions.py").is_file():
+    print("helper_functions.py already existsm skipping download")
+else:
+    print("Downloading helper_function.py")
+    request = requests.get("https://raw.githubusercontent.com/mrdbourke/pytorch-deep-learning/refs/heads/main/helper_functions.py")
+    with open("helper_functions.py", "wb") as f:
+        f.write(request.content)
+
+from helper_functions import plot_predictions, plot_decision_boundary
 
 # Make 1000 samples
 n_samples = 1000
@@ -56,7 +69,7 @@ model_0 = CircleModelV0(device)
 with torch.inference_mode():
     untrained_preds = model_0(X_test)
 
-loss_fn = nn.BCEWithLogitsLoss
+loss_fn = nn.BCEWithLogitsLoss()
 
 optimizer = torch.optim.SGD(params=model_0.parameters(),
                             lr=0.1)
@@ -73,7 +86,55 @@ epochs = 100
 
 for epoch in range(epochs):
 
-    y_logits = model_0(X_test)
+    model_0.train()
+
+    # Raw output of our models
+    y_logits = model_0(X_train).squeeze()
+
+    # Prediction probabilities using the sigmoid function
     y_pred_probs = torch.sigmoid(y_logits)
-    torch.round(y_pred_probs)
+
+    # Predicted labels
+    y_pred = torch.round(y_pred_probs)
+
+    # Calculate loss
+    loss = loss_fn(y_logits, y_train)
+
+    # Calculate accuracy
+    acc = accuracy_fn(y_true=y_train,
+                      y_pred=y_pred)
+
+    # Optimizer zero grad
+    optimizer.zero_grad()
+
+    # Loss backward (backpropagation)
+    loss.backward()
+
+    # Optimizer step (gradient descent)
+    optimizer.step()
+
+    # Testing
+    model_0.eval()
+    with torch.inference_mode():
+        test_logits = model_0(X_test).squeeze()
+
+        test_pred = torch.round(torch.sigmoid((test_logits)))
+
+        test_loss = loss_fn(test_logits, y_test)
+
+        test_acc = accuracy_fn(y_true=y_test,
+                               y_pred=test_pred)
+
+    print(f"Epoch: {epoch}, Loss: {loss:5f}, Acc: {acc:2f}%")
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.title("Train")
+plot_decision_boundary(model_0, X_train, y_train)
+
+plt.subplot(1, 2, 2)
+plt.title("Test")
+plot_decision_boundary(model_0, X_test, y_test)
+
+plt.show()
 print("end")

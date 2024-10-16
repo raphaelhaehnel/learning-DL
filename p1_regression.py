@@ -192,7 +192,9 @@ if __name__ == '__main__':
     X_train, y_train, X_test, y_test = split_train_test(X, y)
     # plot_data(X_train, y_train, X_test, y_test)
 
-    # torch.manual_seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+
     model_0 = LinearRegressionModel(device)
     model_1 = LinearRegressionModelV2(device)
 
