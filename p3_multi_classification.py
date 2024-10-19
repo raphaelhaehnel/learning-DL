@@ -1,4 +1,4 @@
-from sklearn.datasets import make_circles
+from sklearn.datasets import make_blobs
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,10 +25,15 @@ device = define_gpu()
 # Make 1000 samples
 n_samples = 1000
 
+n_clusters = 4
+
 # Create circles
-X, y = make_circles(n_samples,
-                    noise=0.03,
-                    random_state=42)
+X, y = make_blobs(n_samples=n_samples,
+                  n_features=2,
+                  centers=n_clusters,
+                  cluster_std=1.5,
+                  random_state=42)
+
 
 
 circles = pd.DataFrame({"X1": X[:, 0],
@@ -43,7 +48,7 @@ circles = pd.DataFrame({"X1": X[:, 0],
 # plt.show()
 
 X = torch.from_numpy(X).type(torch.float).to(device=device)
-y = torch.from_numpy(y).type(torch.float).to(device=device)
+y = torch.from_numpy(y).type(torch.long).to(device=device)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y,
                                                     test_size=0.2,
@@ -69,7 +74,7 @@ class CircleModelV0(nn.Module):
         return self.layer_2(self.layer_1(x))
 
 
-class CircleModelV1(nn.Module):
+class BlobModelV1(nn.Module):
     def __init__(self, device: str):
         super().__init__()
 
@@ -83,22 +88,23 @@ class CircleModelV1(nn.Module):
                                  bias=True,
                                  device=device)
         self.layer_3 = nn.Linear(in_features=5,
-                                 out_features=1,
+                                 out_features=n_clusters,
                                  bias=True,
                                  device=device)
         self.relu = nn.ReLU()
+        self.softmax = nn.Softmax()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layer_3(self.relu(self.layer_2(self.relu(self.layer_1(x)))))
+        return self.layer_3((self.layer_2((self.layer_1(x)))))
 
 
 
-model = CircleModelV1(device)
+model = BlobModelV1(device)
 
 with torch.inference_mode():
     untrained_preds = model(X_test)
 
-loss_fn = nn.BCEWithLogitsLoss()
+loss_fn = nn.CrossEntropyLoss()
 
 optimizer = torch.optim.Adam(params=model.parameters(),
                             lr=0.01)
@@ -126,10 +132,10 @@ for epoch in range(epochs):
     y_logits = model(X_train).squeeze()
 
     # Prediction probabilities using the sigmoid function
-    y_pred_probs = torch.sigmoid(y_logits)
+    y_pred_probs = torch.softmax(y_logits, dim=1)
 
     # Predicted labels
-    y_pred = torch.round(y_pred_probs)
+    y_pred = torch.argmax(y_pred_probs, dim=1)
 
     # Calculate loss
     loss = loss_fn(y_logits, y_train)
@@ -152,7 +158,7 @@ for epoch in range(epochs):
     with torch.inference_mode():
         test_logits = model(X_test).squeeze()
 
-        test_pred = torch.round(torch.sigmoid((test_logits)))
+        test_pred = torch.softmax(test_logits, dim=1).argmax(dim=1)
 
         test_loss = loss_fn(test_logits, y_test)
 
