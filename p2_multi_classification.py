@@ -6,6 +6,7 @@ import torch
 from torch import nn
 import requests
 from pathlib import Path
+from torchmetrics import Accuracy
 
 from p1_regression import define_gpu
 
@@ -55,24 +56,6 @@ X_train, X_test, y_train, y_test = train_test_split(X, y,
                                                     random_state=42)
 
 
-# Build a model
-class CircleModelV0(nn.Module):
-    def __init__(self, device: str):
-        super().__init__()
-
-        # Use nn.Linear() for creating the model parameters
-        self.layer_1 = nn.Linear(in_features=2,
-                                 out_features=5,
-                                 bias=True,
-                                 device=device)
-        self.layer_2 = nn.Linear(in_features=5,
-                                 out_features=1,
-                                 bias=True,
-                                 device=device)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layer_2(self.layer_1(x))
-
 
 class BlobModelV1(nn.Module):
     def __init__(self, device: str):
@@ -105,6 +88,7 @@ with torch.inference_mode():
     untrained_preds = model(X_test)
 
 loss_fn = nn.CrossEntropyLoss()
+torchmetrics_acc = Accuracy(task="multiclass", num_classes=n_clusters).to(device)
 
 optimizer = torch.optim.Adam(params=model.parameters(),
                             lr=0.01)
@@ -143,6 +127,7 @@ for epoch in range(epochs):
     # Calculate accuracy
     acc = accuracy_fn(y_true=y_train,
                       y_pred=y_pred)
+    torch_acc = torchmetrics_acc(y_pred, y_train)
 
     # Optimizer zero grad
     optimizer.zero_grad()
@@ -170,7 +155,7 @@ for epoch in range(epochs):
         train_loss_values.append(loss.cpu().detach().numpy())
         test_loss_values.append(test_loss.cpu().detach().numpy())
 
-        print(f"Epoch: {epoch}, Loss: {loss:5f}, Acc: {acc:2f}%")
+        print(f"Epoch: {epoch}, Loss: {loss:5f}, Acc: {acc:2f}%, Torch-acc: {torch_acc*100:2f}%")
 
 plt.figure(figsize=(12, 6))
 plt.subplot(1, 2, 1)
