@@ -1,6 +1,7 @@
 # Import pytorch
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 
 # Import torchvision
 import torchvision
@@ -20,7 +21,7 @@ def get_data(is_train: bool):
 
     return data
 
-def display_sample_images(data, rows=3, cols=5):
+def display_sample_images(data, rows, cols):
     class_names = data.classes
     plt.figure()
 
@@ -49,7 +50,30 @@ def main():
     train_data = get_data(is_train=True)
     test_data = get_data(is_train=False)
 
-    display_sample_images(train_data)
+    display_sample_images(train_data, rows=3, cols=6)
+
+    # Set up the batch size hyperparameter
+    BATCH_SIZE = 32
+
+    # Turn datasets into iterables
+    train_dataloader = DataLoader(dataset=train_data,
+                                  batch_size=BATCH_SIZE,
+                                  shuffle=True)
+    test_dataloader = DataLoader(dataset=test_data,
+                                  batch_size=BATCH_SIZE,
+                                  shuffle=False)
+
+    X_train_batch, y_train_batch = next(iter(train_dataloader))
+    X_test_batch, y_test_batch = next(iter(test_dataloader))
+
+    x = X_train_batch[0]
+
+    # Create a flatten layer
+    flatten_model = nn.Flatten()
+
+    # Flatten the sample
+    output = flatten_model(x)
+
     print("end program")
 
 if __name__ == "__main__":
