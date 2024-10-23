@@ -15,20 +15,25 @@ def get_device():
         return "cuda"
     return "cpu"
 
-def get_data(device, n_samples=1000):
-    X, y = make_moons(n_samples=n_samples)
+def get_data(device, n_samples, num_classes):
+
+    # X, y = make_moons(n_samples=n_samples)
+
+    # Code for creating a spiral dataset from CS231n
+    X, y = spirals_data(N=n_samples, K=num_classes)
 
     # Convert the data to tensor
     X = torch.from_numpy(X).type(torch.float).to(device=device)
-    y = torch.from_numpy(y).type(torch.float).to(device=device)
+    y = torch.from_numpy(y).type(torch.long).to(device=device)
 
     return X, y
 
 def training_loop(epochs: int, model: nn.Module, loss_fn, optimizer,
                   X_train, y_train, X_test, y_test, epoch_count,
-                  train_loss_values, test_loss_values, device):
+                  train_loss_values, test_loss_values, device,
+                  classification_type, num_classes):
 
-    accuracy_fn = Accuracy(task="binary").to(device)
+    accuracy_fn = Accuracy(task=classification_type, num_classes=num_classes).to(device)
 
     for epoch in range(epochs):
 
@@ -37,11 +42,14 @@ def training_loop(epochs: int, model: nn.Module, loss_fn, optimizer,
         # Raw output of our models
         y_logits = model(X_train).squeeze()
 
-        # Prediction probabilities using the sigmoid function
-        y_pred_probs = torch.sigmoid(y_logits)
+        # Prediction probabilities
+        if classification_type == "binary":
+            y_pred_probs = torch.sigmoid(y_logits)
+            y_pred = torch.round(y_pred_probs)
 
-        # Predicted labels
-        y_pred = torch.round(y_pred_probs)
+        elif classification_type == "multiclass":
+            y_pred_probs = torch.softmax(y_logits, dim=1)
+            y_pred = torch.argmax(y_pred_probs, dim=1)
 
         loss = loss_fn(y_logits, y_train)
 
@@ -54,7 +62,11 @@ def training_loop(epochs: int, model: nn.Module, loss_fn, optimizer,
         model.eval()
         with torch.inference_mode():
             test_logits = model(X_test).squeeze()
-            test_pred = torch.round(torch.sigmoid(test_logits))
+            if classification_type == "binary":
+                test_pred = torch.round(torch.sigmoid(test_logits))
+            elif classification_type == "multiclass":
+                test_pred = torch.softmax(test_logits, dim=1).argmax(dim=1)
+
             test_loss = loss_fn(test_logits, y_test)
 
             acc = accuracy_fn(y_test, test_pred)
@@ -68,7 +80,7 @@ def training_loop(epochs: int, model: nn.Module, loss_fn, optimizer,
 
 
 class MoonModel(nn.Module):
-    def __init__(self, device: str):
+    def __init__(self, out_features: int, device: str):
         super().__init__()
 
         self.model = nn.Sequential(nn.Linear(in_features=2, out_features=5, device=device),
@@ -77,32 +89,35 @@ class MoonModel(nn.Module):
                                    nn.ReLU(),
                                    nn.Linear(in_features=5, out_features=5, device=device),
                                    nn.ReLU(),
-                                   nn.Linear(in_features=5, out_features=1, device=device),)
+                                   nn.Linear(in_features=5, out_features=out_features, device=device),)
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
 
-def main_function():
+def main_function(classification_type, num_classes, epochs):
     # Use GPU if available
     device = get_device()
 
     # Generate data
-    X, y = get_data(device, n_samples=1000)
+    X, y = get_data(device, n_samples=1000, num_classes=num_classes)
 
     # Split the data to train and test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
     # Initialize the model
-    model = MoonModel(device)
+    model = MoonModel(out_features=num_classes, device=device)
 
     # Define the loss function
-    loss_fn = nn.BCEWithLogitsLoss()
+    if classification_type == "binary":
+        loss_fn = nn.BCEWithLogitsLoss()
+    elif classification_type == "multiclass":
+        loss_fn = nn.CrossEntropyLoss()
+    else:
+        print("Classification type not recognized")
+        return
 
     # Define the optimizer
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01)
-
-    # Define the number of epochs
-    epochs = 500
 
     # Initialize different values to track
     epoch_count = []
@@ -110,8 +125,9 @@ def main_function():
     test_loss_values = []
 
     training_loop(epochs, model, loss_fn, optimizer,
-                      X_train, y_train, X_test, y_test, epoch_count,
-                      train_loss_values, test_loss_values, device)
+                  X_train, y_train, X_test, y_test, epoch_count,
+                  train_loss_values, test_loss_values, device,
+                  classification_type, num_classes)
 
     plt.figure()
     plt.title("After training")
@@ -147,13 +163,12 @@ def spirals_data(N=100, K=3):
         t = np.linspace(j * 4, (j + 1) * 4, N) + np.random.randn(N) * 0.2  # theta
         X[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
         y[ix] = j
-    # lets visualize the data
-    plt.scatter(X[:, 0], X[:, 1], c=y, s=40, cmap=plt.cm.Spectral)
-    plt.show()
+
+    return X, y
 
 if __name__ == "__main__":
-    # main_function()
+    main_function(classification_type="multiclass",
+                  num_classes=4,
+                  epochs=3000)
     # personalized_tanh_function()
 
-    # Code for creating a spiral dataset from CS231n
-    spirals_data(N=100, K=3)
