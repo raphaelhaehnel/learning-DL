@@ -12,6 +12,11 @@ from torchvision.transforms import ToTensor
 # Import matplotlib
 import matplotlib.pyplot as plt
 
+from helper_functions import accuracy_fn
+from timeit import default_timer as timer
+from tqdm.auto import tqdm
+
+
 def get_data(is_train: bool):
     data = datasets.FashionMNIST(root="data", # Where to download the data
                           train=is_train,
@@ -46,7 +51,16 @@ def display_sample_images(data, rows, cols):
 
     plt.show()
 
+def define_gpu():
+    print("CUDA is available ? ", torch.cuda.is_available())
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("count devices: ", torch.cuda.device_count())
+    return device
+
 def main():
+
+    device = define_gpu()
+
     train_data = get_data(is_train=True)
     test_data = get_data(is_train=False)
 
@@ -63,18 +77,144 @@ def main():
                                   batch_size=BATCH_SIZE,
                                   shuffle=False)
 
-    X_train_batch, y_train_batch = next(iter(train_dataloader))
-    X_test_batch, y_test_batch = next(iter(test_dataloader))
 
-    x = X_train_batch[0]
+    class_names = train_data.classes
 
-    # Create a flatten layer
-    flatten_model = nn.Flatten()
+    model_0 = FashionMNISTModelV1(input_shape=28*28,
+                                  hidden_units=10,
+                                  output_shape=len(class_names))
 
-    # Flatten the sample
-    output = flatten_model(x)
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(params=model_0.parameters(),
+                               lr=0.1)
 
+    epochs = 10
+
+    for epoch in tqdm(range(epochs)):
+        train_loss = 0
+
+        for batch, (X, y) in enumerate(train_dataloader):
+
+            model_0.train()
+
+            # Forward passs
+            y_pred = model_0(X)
+
+            # Calculate the loss
+            loss = loss_fn(y_pred, y)
+            train_loss += loss
+
+            # Optimizer zero grad
+            optimizer.zero_grad()
+
+            # Loss backward
+            loss.backward()
+
+            # Optimizer step
+            optimizer.step()
+
+            if batch % 400 == 0:
+                print(f"Looked at {(batch * len(X))}/{len(train_dataloader.dataset)} samples")
+
+        train_loss /= len(train_dataloader)
+
+        # Testing
+        test_loss, test_acc = 0, 0
+        model_0.eval()
+        with torch.inference_mode():
+            for X_test, y_test in test_dataloader:
+                # Forward pass
+                test_pred = model_0(X_test)
+
+                # Calculate the loss
+                test_loss += loss_fn(test_pred, y_test)
+
+                # Calculate accuracy
+                test_acc += accuracy_fn(y_test, test_pred.argmax(dim=1))
+
+            # Calculate test loss average per batch
+            test_loss /= len(test_dataloader)
+
+            # Calculate the test acc average per batch
+            test_acc /= len(test_dataloader)
+
+        print(f"Train loss: {train_loss:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_acc:.4f}")
+
+    model_0_results = eval_model(model_0,
+                                 test_dataloader,
+                                 loss_fn,
+                                 accuracy_fn)
+
+    print(model_0_results)
     print("end program")
+
+def eval_model(model: torch.nn.Module,
+               data_loader: torch.utils.data.DataLoader,
+               loss_fn: torch.nn.Module,
+               accuracy_fn):
+    """
+    Returns a dictionary containing the results of model predicting on data_loader
+    :param model:
+    :param data_loader:
+    :param loss_fn:
+    :param accuracy_fn:
+    :return:
+    """
+
+    loss, acc = 0, 0
+    model.eval()
+    with torch.inference_mode():
+        for X, y in data_loader:
+
+            # Make predictions
+            y_pred = model(X)
+
+            # Accumulate the loss and acc values per batch
+            loss += loss_fn(y_pred, y)
+            acc += accuracy_fn(y_true=y,
+                               y_pred=y_pred.argmax(dim=1))
+        # Scale loss and acc to finc average loss,acc per batch
+        loss /= len(data_loader)
+        acc /= len(data_loader)
+
+    return {"model_name": model._get_name(),
+            "model_loss": loss.item(),
+            "model_acc": acc}
+
+def print_train_time(start:float,
+                     end:float,
+                     device: torch.device = None):
+    total_time = end - start
+    print(f"Train time on {device}: {total_time:.3f} seconds")
+    return total_time
+
+class FashionMNISTModelV0(nn.Module):
+    def __init__(self, input_shape: int, hidden_units: int, output_shape: int):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=input_shape,
+                      out_features=hidden_units),
+            nn.Linear(in_features=hidden_units,
+                      out_features=output_shape))
+
+    def forward(self, x):
+        return self.layer_stack(x)
+
+class FashionMNISTModelV1(nn.Module):
+    def __init__(self, input_shape: int, hidden_units: int, output_shape: int):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=input_shape,
+                      out_features=hidden_units),
+            nn.ReLU(),
+            nn.Linear(in_features=hidden_units,
+                      out_features=output_shape),
+            nn.ReLU())
+
+    def forward(self, x):
+        return self.layer_stack(x)
 
 if __name__ == "__main__":
     main()
