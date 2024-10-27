@@ -80,25 +80,34 @@ def main():
 
     class_names = train_data.classes
 
-    model_0 = FashionMNISTModelV1(input_shape=28*28,
+    model = FashionMNISTModelV1(input_shape=28*28,
                                   hidden_units=10,
-                                  output_shape=len(class_names))
+                                  output_shape=len(class_names),
+                                  device=device)
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(params=model_0.parameters(),
+    optimizer = torch.optim.SGD(params=model.parameters(),
                                lr=0.1)
 
-    epochs = 10
+    epochs = 20
+
+    epoch_count = []
+    train_loss_values = []
+    test_loss_values = []
 
     for epoch in tqdm(range(epochs)):
+        print(f"Epoch: {epoch}\n---------")
         train_loss = 0
 
-        for batch, (X, y) in enumerate(train_dataloader):
+        for (batch, (X, y)) in enumerate(train_dataloader):
 
-            model_0.train()
+            X = X.to(device=device)
+            y = y.to(device=device)
+
+            model.train()
 
             # Forward passs
-            y_pred = model_0(X)
+            y_pred = model(X)
 
             # Calculate the loss
             loss = loss_fn(y_pred, y)
@@ -120,11 +129,15 @@ def main():
 
         # Testing
         test_loss, test_acc = 0, 0
-        model_0.eval()
+        model.eval()
         with torch.inference_mode():
             for X_test, y_test in test_dataloader:
+
+                X_test = X_test.to(device=device)
+                y_test = y_test.to(device=device)
+
                 # Forward pass
-                test_pred = model_0(X_test)
+                test_pred = model(X_test)
 
                 # Calculate the loss
                 test_loss += loss_fn(test_pred, y_test)
@@ -138,12 +151,26 @@ def main():
             # Calculate the test acc average per batch
             test_acc /= len(test_dataloader)
 
+        epoch_count.append(epoch)
+        train_loss_values.append(train_loss.cpu().detach().numpy())
+        test_loss_values.append(test_loss.cpu().detach().numpy())
+
         print(f"Train loss: {train_loss:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_acc:.4f}")
 
-    model_0_results = eval_model(model_0,
+
+    plt.figure()
+    plt.title(f"Loss function {model._get_name()}")
+    plt.plot(epoch_count, train_loss_values, label="Train loss")
+    plt.plot(epoch_count, test_loss_values, label="Test loss")
+    plt.legend()
+
+    plt.show()
+
+    model_0_results = eval_model(model,
                                  test_dataloader,
                                  loss_fn,
-                                 accuracy_fn)
+                                 accuracy_fn,
+                                 device)
 
     print(model_0_results)
     print("end program")
@@ -151,7 +178,8 @@ def main():
 def eval_model(model: torch.nn.Module,
                data_loader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
-               accuracy_fn):
+               accuracy_fn,
+               device: str):
     """
     Returns a dictionary containing the results of model predicting on data_loader
     :param model:
@@ -165,6 +193,9 @@ def eval_model(model: torch.nn.Module,
     model.eval()
     with torch.inference_mode():
         for X, y in data_loader:
+
+            X = X.to(device)
+            y = y.to(device)
 
             # Make predictions
             y_pred = model(X)
@@ -202,16 +233,16 @@ class FashionMNISTModelV0(nn.Module):
         return self.layer_stack(x)
 
 class FashionMNISTModelV1(nn.Module):
-    def __init__(self, input_shape: int, hidden_units: int, output_shape: int):
+    def __init__(self, input_shape: int, hidden_units: int, output_shape: int, device: str):
         super().__init__()
         self.layer_stack = nn.Sequential(
             nn.Flatten(),
             nn.Linear(in_features=input_shape,
-                      out_features=hidden_units),
-            nn.ReLU(),
+                      out_features=hidden_units,
+                      device=device),
             nn.Linear(in_features=hidden_units,
-                      out_features=output_shape),
-            nn.ReLU())
+                      out_features=output_shape,
+                      device=device))
 
     def forward(self, x):
         return self.layer_stack(x)
