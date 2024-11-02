@@ -59,7 +59,7 @@ def define_gpu():
     print("count devices: ", torch.cuda.device_count())
     return device
 
-def train_model(device: str, model: nn.Module, test_dataloader, train_dataloader):
+def train_model(device: str, model: nn.Module, test_dataloader, train_dataloader, n_epochs: int):
 
     # Setup loss function
     loss_fn = nn.CrossEntropyLoss()
@@ -68,13 +68,11 @@ def train_model(device: str, model: nn.Module, test_dataloader, train_dataloader
     optimizer = torch.optim.SGD(params=model.parameters(),
                                lr=0.1)
 
-    epochs = 10
-
     epoch_count = []
     train_loss_values = []
     test_loss_values = []
 
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(n_epochs)):
         print(f"Epoch: {epoch}\n---------")
         train_loss = train_loop(device,
                                 loss_fn,
@@ -385,43 +383,12 @@ def predict(model, test_data, class_names, device):
 
         plt.axis(False)
 
-if __name__ == "__main__":
-
-    # Define running device
-    device = define_gpu()
-
-    # Get data
-    class_names, test_dataloader, train_dataloader, train_data, test_data = get_data_parameters()
-
-    # Define the model
-    model_1 = FashionMNISTModelV1(input_shape=28 * 28,
-                                hidden_units=10,
-                                output_shape=len(class_names),
-                                device=device)
-    model_2 = FashionMNISTModelV2(input_shape=1,
-                                hidden_units=10,
-                                output_shape=len(class_names),
-                                device=device)
-
-    # Train model
-    # train_model(device, model_2, test_dataloader, train_dataloader)
-    model_2.load_state_dict(torch.load(f=f"weights-{model_2._get_name()}.pt"))
-
-    # Padding: add a padding of 0 around the image, so the convolution is starting outside the image
-    # Kernel size: size of the kernel. Number of iterations is (input size - kernel size + 1)
-    # Stride: Steps of the kernel (usually 1)
-
-
-    # Predict
-    # predict(model_2, test_data, class_names, device)
-
-
+def create_confusion_matrix(test_dataloader, device):
     # 1. Make predictions with our trained model on the test dataset
     y_preds = []
     model_2.eval()
     with torch.inference_mode():
         for (X, y) in tqdm(test_dataloader, desc="Making predictions..."):
-
             X, y = X.to(device), y.to(device)
             y_logit = model_2(X)
             y_pred = torch.softmax(y_logit.squeeze(), dim=0).argmax(dim=1)
@@ -440,6 +407,41 @@ if __name__ == "__main__":
                                     class_names=class_names,
                                     figsize=(10, 7))
 
+if __name__ == "__main__":
+
+    # Define running device
+    device = define_gpu()
+
+    # Get data
+    class_names, test_dataloader, train_dataloader, train_data, test_data = get_data_parameters()
+
+    # Define the model
+    model_1 = FashionMNISTModelV1(input_shape=28 * 28,
+                                  hidden_units=10,
+                                  output_shape=len(class_names),
+                                  device=device)
+    model_2 = FashionMNISTModelV2(input_shape=1,
+                                  hidden_units=10,
+                                  output_shape=len(class_names),
+                                  device=device)
+
+    n_epochs = 20
+
+    # Train model
+    train_model(device, model_2, test_dataloader, train_dataloader, n_epochs)
+    model_2.load_state_dict(torch.load(f=f"weights-{model_2._get_name()}.pt"))
+
+    """
+    Padding: add a padding of 0 around the image, so the convolution is starting outside the image
+    Kernel size: size of the kernel. Number of iterations is (input size - kernel size + 1)
+    Stride: Steps of the kernel (usually 1)
+    """
+
+    # Predict
+    # predict(model_2, test_data, class_names, device)
+
+    # Display confusion matrix
+    create_confusion_matrix(test_dataloader, device)
 
 
     plt.show()
