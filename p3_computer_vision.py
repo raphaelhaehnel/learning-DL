@@ -65,14 +65,15 @@ def train_model(device: str, model: nn.Module, test_dataloader, train_dataloader
     loss_fn = nn.CrossEntropyLoss()
 
     # Setup optimizer
-    optimizer = torch.optim.SGD(params=model.parameters(),
-                               lr=0.1)
+    optimizer = torch.optim.Adam(params=model.parameters(),
+                               lr=0.0002)
 
     epoch_count = []
     train_loss_values = []
     test_loss_values = []
 
-    for epoch in tqdm(range(n_epochs)):
+    for epoch in range(n_epochs):
+        print(f"Progression: {epoch/n_epochs*100:.1f}%")
         print(f"Epoch: {epoch}\n---------")
         train_loss = train_loop(device,
                                 loss_fn,
@@ -368,7 +369,7 @@ def predict(model, test_data, class_names, device):
     for i, sample in enumerate(test_samples):
         plt.subplot(nrows, ncols, i + 1)
 
-        plt.imshow(sample.squeeze(), cmap="gray")
+        plt.imshow(sample.squeeze().permute(1, 2, 0), cmap="gray")
 
         pred_label = class_names[pred_classes[i]]
 
@@ -383,14 +384,14 @@ def predict(model, test_data, class_names, device):
 
         plt.axis(False)
 
-def create_confusion_matrix(test_dataloader, device):
+def create_confusion_matrix(model, test_dataloader, device):
     # 1. Make predictions with our trained model on the test dataset
     y_preds = []
-    model_2.eval()
+    model.eval()
     with torch.inference_mode():
         for (X, y) in tqdm(test_dataloader, desc="Making predictions..."):
             X, y = X.to(device), y.to(device)
-            y_logit = model_2(X)
+            y_logit = model(X)
             y_pred = torch.softmax(y_logit.squeeze(), dim=0).argmax(dim=1)
             y_preds.append(y_pred.cpu())
 
@@ -441,7 +442,7 @@ if __name__ == "__main__":
     # predict(model_2, test_data, class_names, device)
 
     # Display confusion matrix
-    create_confusion_matrix(test_dataloader, device)
+    create_confusion_matrix(model_2, test_dataloader, device)
 
 
     plt.show()
