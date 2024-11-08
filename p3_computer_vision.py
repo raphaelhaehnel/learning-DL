@@ -176,7 +176,7 @@ def train_loop(device: str,
 
         model.train()
 
-        # Forward passs
+        # Forward pass
         y_pred = model(X)
 
         # Calculate the loss
