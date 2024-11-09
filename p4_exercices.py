@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from utils import *
 from nn_models.tiny_vgg import TinyVGG
 from torch import nn
@@ -7,6 +9,7 @@ LOAD_MODEL = False
 
 if __name__ == "__main__":
 
+    # configuration -m TinyVGG -b 32 -l 0.001 -e 5 -u 10
 
     # Get the current device to work on - cpu or gpu
     device = get_device()
@@ -19,6 +22,10 @@ if __name__ == "__main__":
                                                                                              batch_size=BATCH_SIZE,
                                                                                              input_size=(64, 64),
                                                                                              use_multicore=False)
+
+    plt.imshow(train_dataset[1][0].permute(1, 2, 0))
+    plt.show()
+
     # Get the number of channels (generally 3)
     number_of_channels = train_dataset[0][0].shape[0]
 

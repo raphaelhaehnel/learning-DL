@@ -1,11 +1,15 @@
-import argparse
+import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+
 import os
-import torch
+import argparse
+
+from helper_functions import accuracy_fn
 
 
-def get_device():
+def get_device() -> str:
     """
 
     :return:
@@ -16,7 +20,7 @@ def get_device():
     return device
 
 
-def get_arguments_from_cmd():
+def get_arguments_from_cmd() -> tuple[str, int, float, int, int]:
     """
 
     :return:
@@ -178,9 +182,43 @@ def train_model(model: torch.nn,
 
         train_loss /= len(train_dataloader)
 
-        # Testing
-        test_acc, test_loss = testing_loop(device, loss_fn, model, test_dataloader)
+        # Testing step
+        test_acc, test_loss = 0, 0
+
+        model.eval()
+        with torch.inference_mode():
+            for X_test, y_test in test_dataloader:
+                X_test = X_test.to(device)
+                y_test = y_test.to(device)
+
+                # Forward pass
+                test_pred = model(X_test)
+
+                # Calculate the loss
+                test_loss += loss_fn(test_pred, y_test)
+
+                # Calculate accuracy
+                test_acc += accuracy_fn(y_test, test_pred.argmax(dim=1))
+
+            # Calculate test loss average per batch
+            test_loss /= len(test_dataloader)
+
+            # Calculate the test ac average per batch
+            test_acc /= len(test_dataloader)
 
         epoch_count.append(epoch)
         train_loss_values.append(train_loss.cpu().detach().numpy())
         test_loss_values.append(test_loss.cpu().detach().numpy())
+
+        print(f"Train loss: {train_loss:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_acc:.4f}")
+
+    display_loss_graph(epoch_count, model, test_loss_values, train_loss_values)
+
+
+def display_loss_graph(epoch_count, model, test_loss_values, train_loss_values):
+    plt.figure()
+    plt.title(f"Loss function {model._get_name()}")
+    plt.plot(epoch_count, train_loss_values, label="Train loss")
+    plt.plot(epoch_count, test_loss_values, label="Test loss")
+    plt.legend()
+    plt.show()
