@@ -10,7 +10,7 @@
 ![Figure_2](https://github.com/user-attachments/assets/1fd16de8-984a-499d-872d-3d25ecb9fe95)
 
 ### Classification task
-> We generate synthetic circular data, split it into training and testing sets, and define two variations of a feedforward neural network.
+> We generate circular data, split it into training and testing sets, and define two variations of a neural network.
 > The models are trained using the binary cross-entropy loss function and optimized with Adam.
 > We track loss values and accuracy during training and visualize decision boundaries to evaluate performance.
 
@@ -33,7 +33,7 @@
 ![Figure_1](https://github.com/user-attachments/assets/378c91b8-be89-490f-af09-5cca828a6b86)
 ![Figure_2](https://github.com/user-attachments/assets/43304f30-61b0-4d0d-be6b-d6ee31e9ce89)
 
-> Building the confusion matrix on the test set:
+- Building the confusion matrix on the test set:
 
 ![Figure_3](https://github.com/user-attachments/assets/b68a25b0-ec95-478b-b43b-3a5d295534f0)
 
@@ -43,4 +43,7 @@
 ![Figure_1](https://github.com/user-attachments/assets/ad85a3ee-6b2f-4203-b52c-401620543e8a)
 ![Figure_2](https://github.com/user-attachments/assets/88ee3192-be6e-487b-aa52-4fe7e73907bb)
 ![Figure_3](https://github.com/user-attachments/assets/d0499ff9-92fa-4012-8fd8-8cab50236052)
+
+- We can see on the following graph a lot of wrong predictions. The model needs to be fit to the task.
+
 ![Figure_4](https://github.com/user-attachments/assets/879bd25a-fea3-4e85-b7d4-3ae257f4067f)
