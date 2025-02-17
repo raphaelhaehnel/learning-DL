@@ -17,7 +17,7 @@
 ![Figure_1](https://github.com/user-attachments/assets/ca797479-967a-4fbe-8a19-e990797bee97)
 ![Figure_2](https://github.com/user-attachments/assets/461b550e-2201-4ece-adb7-15ef18c257fc)
 
-### Classification on 4 classes
+### Classification on multiple classes
 > Trains a neural network to classify points in a spiral dataset.
 > It generates synthetic data, splits it into training and testing sets, and trains a fully connected neural network using PyTorch.
 > The model learns to separate the classes through iterative optimization, and its performance is evaluated using accuracy and loss metrics.
